@@ -1,0 +1,11 @@
+[package]
+name = "hyraid"
+version = "0.0.1"
+edition = "2024"
+description = "mdadm wrapper with extra features"
+
+[dependencies]
+clap = { version = "4.5.40", features = ["derive","cargo"] }
+gpt = "4.1.0"
+nix = { version = "0.30.1", features = ["user"]}
+regex = "1.11.1"
