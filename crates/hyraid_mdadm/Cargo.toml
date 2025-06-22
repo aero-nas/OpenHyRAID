@@ -1,0 +1,10 @@
+[package]
+name = "hyraid_mdadm"
+edition.workspace = true
+authors.workspace = true
+version.workspace = true
+description.workspace = true
+license.workspace = true
+
+[dependencies]
+regex = "1.11.1"

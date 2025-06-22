@@ -16,9 +16,9 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
+*/
 
-use std::{collections::HashMap, process::Command};
+use std::process::Command;
 use regex::Regex;
 
 /// Macro to check if device name is correct.
@@ -53,8 +53,8 @@ macro_rules! run_cmd {
     };
 }
 
+/// Represents a software RAID device (array)
 #[derive(Debug)]
-/// Represents a RAID device (array)
 pub struct RaidDev {
     /// Devices active in the RAID array
     pub raid_devices: usize,
@@ -169,7 +169,7 @@ pub fn fail_from_array(
     run_cmd!(cmd)
 }
 
-/// Remove device from array, return error as a string if failed.
+/// Remove partition from array, return error as a string if failed.
 pub fn remove_from_array(
     raid_dev: &'static str,
     partitions: &[&'static str],
@@ -201,28 +201,6 @@ pub fn add_to_array(
     cmd.args(partitions);
 
     run_cmd!(cmd)
-}
-
-/// Function to parse details with regex
-fn detail_parse_regex(
-    stdout: &str
-) -> HashMap<String, String> { 
-    let patterns = vec![
-        
-    ];
-
-    let mut result = HashMap::new();
-
-    for (pattern, key) in patterns {
-        let re = Regex::new(pattern).unwrap();
-        if let Some(caps) = re.captures(stdout) {
-            if let Some(m) = caps.name(key) {
-                result.insert(key.to_string(), m.as_str().to_string());
-            }
-        }
-    }
-
-    return result;
 }
 
 /// Get details of RAID array, return error as a string if failed.

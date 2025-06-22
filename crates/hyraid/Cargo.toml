@@ -1,0 +1,10 @@
+[package]
+name = "hyraid"
+edition.workspace = true
+authors.workspace = true
+version.workspace = true
+description.workspace = true
+license.workspace = true
+
+[dependencies]
+hyraid_mdadm = { workspace = true }

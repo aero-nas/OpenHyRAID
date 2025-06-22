@@ -23,6 +23,6 @@ HyRAID supports RAID0,RAID1,RAID5, and RAID6. While SHR only supports RAID5 (SHR
 
 HyRAID is free and licensed under GPLv2. While SHR is proprietary.
 
-SHR has no support for other architectures. While HyRAID has mainstream aarch64 (Raspberry Pi 5/CM5) support.
+SHR has no support for other architectures. While HyRAID has mainstream aarch64 (architecture of Raspberry Pi 5/CM5) support for reasons that will be obvious later.
 
 made with <3 by lizard >w<
