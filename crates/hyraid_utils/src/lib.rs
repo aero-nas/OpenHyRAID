@@ -1,6 +1,5 @@
-/*
-    Open source implementation of Synology SHR.
-    Similar behaviour to libblockdev
+/* 
+    Miscallenous utilities for HyRAID
 
     Copyright (C) 2025 LIZARD-OFFICIAL-77
     This program is free software; you can redistribute it and/or modify
@@ -17,14 +16,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-use hyraid_utils::is_root;
-use hyraid_array;
-use std::process;
+use nix::unistd::{getuid,ROOT};
 
-fn main() {
-    if !is_root() {
-        println!("HyRAID must be run as root. Quitting.");
-        process::exit(1);
-    }
-    hyraid_array::create_array(&["/dev/loop0","/dev/loop1","/dev/loop2","/dev/loop3","/dev/loop4"])
+pub fn is_root() -> bool {
+    return getuid() == ROOT;
 }

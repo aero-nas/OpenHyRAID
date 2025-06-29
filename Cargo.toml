@@ -12,3 +12,5 @@ license = "GPL-2.0-only"
 
 [workspace.dependencies]
 hyraid_mdadm = { path = "crates/hyraid_mdadm" }
+hyraid_array = { path = "crates/hyraid_array" }
+hyraid_utils = { path = "crates/hyraid_utils" }

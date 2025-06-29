@@ -1,5 +1,5 @@
 [package]
-name = "hyraid"
+name = "hyraid_array"
 edition.workspace = true
 authors.workspace = true
 version.workspace = true
@@ -7,6 +7,6 @@ description.workspace = true
 license.workspace = true
 
 [dependencies]
-hyraid_utils = { workspace = true }
-hyraid_array = { workspace = true }
+gpt = "4.1.0"
+regex = "1.11.1"
 lsblk = "0.6.1"

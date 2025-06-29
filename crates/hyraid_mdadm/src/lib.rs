@@ -1,21 +1,20 @@
-/**
- * mdadm bindings
- * Similar behaviour to libblockdev
- * 
- * Copyright (C) 2025 LIZARD-OFFICIAL-77
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+/*
+    mdadm bindings
+    Similar behaviour to libblockdev
+
+    Copyright (C) 2025 LIZARD-OFFICIAL-77
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
 use std::process::Command;
@@ -115,7 +114,7 @@ pub fn create_array(
     raid_level:usize
 ) -> Result<(),String> {
         let posix = Regex::new(r"^[A-Za-z0-9\.\-_]*$").unwrap();
-        let mut cmd = Command::new("mdadmk");
+        let mut cmd = Command::new("mdadm");
 
         if !([0,1,5,6].contains(&raid_level)) {
             return Err(format!("Incorrect raid level:{}",raid_level));
@@ -145,8 +144,8 @@ pub fn create_array(
         }
 
         cmd.args(["--metadata","1.2"]);
-        cmd.arg(format!("--level={}",&raid_level.to_string()[..]));
-        cmd.args(["--raid-devices",&partitions.len().to_string()[..]]);
+        cmd.arg(format!("--level={}",&raid_level.to_string()));
+        cmd.args(["--raid-devices",&partitions.len().to_string()]);
         
         run_cmd!(cmd)
     }
