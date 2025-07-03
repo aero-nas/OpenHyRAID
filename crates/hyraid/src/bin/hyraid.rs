@@ -20,11 +20,19 @@
 use hyraid_utils::is_root;
 use hyraid_array;
 use std::process;
+use lsblk::BlockDevice;
+use gpt::{self, partition};
 
 fn main() {
+    let diskpath = std::path::Path::new("/dev/loop2");
+    let mut disk = gpt::GptConfig::new()
+        .writable(true)
+        .open(diskpath)
+        .expect("Failed to open disk");
+    println!("{:?}",disk.partitions());
     if !is_root() {
         println!("HyRAID must be run as root. Quitting.");
         process::exit(1);
     }
-    hyraid_array::create_array(&["/dev/loop0","/dev/loop1","/dev/loop2","/dev/loop3","/dev/loop4"])
+    //hyraid_array::create_array(&["/dev/loop0","/dev/loop1","/dev/loop2","/dev/loop3","/dev/loop4"])
 }

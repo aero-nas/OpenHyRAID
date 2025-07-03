@@ -109,8 +109,8 @@ pub struct RaidDev {
 
 /// Create new (regular) RAID array, return error as a string if failed.
 pub fn create_array(
-    raid_dev: &'static str,
-    partitions: &[&'static str],
+    raid_dev: &str,
+    partitions: &[&str],
     raid_level:usize
 ) -> Result<(),String> {
         let posix = Regex::new(r"^[A-Za-z0-9\.\-_]*$").unwrap();
@@ -153,8 +153,8 @@ pub fn create_array(
 
 /// Mark partitions as faulty, return error as a string if failed.
 pub fn fail_from_array(
-    raid_dev: &'static str,
-    partitions: &[&'static str],
+    raid_dev: &str,
+    partitions: &[&str],
 ) -> Result<(),String> {
     let mut cmd = Command::new("mdadm");
 
@@ -170,8 +170,8 @@ pub fn fail_from_array(
 
 /// Remove partition from array, return error as a string if failed.
 pub fn remove_from_array(
-    raid_dev: &'static str,
-    partitions: &[&'static str],
+    raid_dev: &str,
+    partitions: &[&str],
 ) -> Result<(),String> {
     let mut cmd = Command::new("mdadm");
     
@@ -187,8 +187,8 @@ pub fn remove_from_array(
 
 /// Add partitions to existing array, return error as a string if failed.
 pub fn add_to_array(
-    raid_dev: &'static str,
-    partitions: &[&'static str],
+    raid_dev: &str,
+    partitions: &[&str],
 ) -> Result<(),String> {
     let mut cmd = Command::new("mdadm");
     
@@ -204,7 +204,7 @@ pub fn add_to_array(
 
 /// Get details of RAID array, return error as a string if failed.
 pub fn get_detail(
-    raid_dev: &'static str
+    raid_dev: &str
 ) -> Result<RaidDev, String> {
     let cmd = Command::new("mdadm")
         .arg("--detail")
