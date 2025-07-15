@@ -96,6 +96,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyraid_lvm2"
+version = "0.0.1"
+
+[[package]]
 name = "hyraid_mdadm"
 version = "0.0.1"
 dependencies = [

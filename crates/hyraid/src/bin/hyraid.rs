@@ -1,6 +1,5 @@
 /*
     Open source implementation of Synology SHR.
-    Similar behaviour to libblockdev
 
     Copyright (C) 2025 LIZARD-OFFICIAL-77
     This program is free software; you can redistribute it and/or modify
@@ -18,21 +17,19 @@
 */
 
 use hyraid_utils::is_root;
-use hyraid_array;
 use std::process;
-use lsblk::BlockDevice;
-use gpt::{self, partition};
+use gpt;
 
 fn main() {
-    let diskpath = std::path::Path::new("/dev/loop2");
-    let mut disk = gpt::GptConfig::new()
-        .writable(true)
-        .open(diskpath)
-        .expect("Failed to open disk");
-    println!("{:?}",disk.partitions());
     if !is_root() {
         println!("HyRAID must be run as root. Quitting.");
         process::exit(1);
     }
-    //hyraid_array::create_array(&["/dev/loop0","/dev/loop1","/dev/loop2","/dev/loop3","/dev/loop4"])
+    println!("THIS PROGRAM IS IN W.I.P. RUNNING IT WILL RESULT IN UNDEFINED BEHAVIOUR!!!");
+    let diskpath = std::path::Path::new("/dev/loop2");
+    let disk = gpt::GptConfig::new()
+        .writable(true)
+        .open(diskpath)
+        .expect("Failed to open disk");
+    println!("{:?}",disk.partitions());
 }
