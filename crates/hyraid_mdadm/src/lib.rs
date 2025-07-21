@@ -1,5 +1,6 @@
-/*
+/*!
     mdadm bindings
+    
     Similar behaviour to libblockdev
 
     Copyright (C) 2025 LIZARD-OFFICIAL-77

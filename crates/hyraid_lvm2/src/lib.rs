@@ -1,5 +1,7 @@
-/*
+/*!
     lvm2 bindings
+    
+    Similar behaviour to libblockdev for C
 
     Copyright (C) 2025 LIZARD-OFFICIAL-77
     This program is free software; you can redistribute it and/or modify

@@ -89,11 +89,16 @@ name = "hyraid_array"
 version = "0.0.1"
 dependencies = [
  "gpt",
+ "hyraid_lvm2",
  "hyraid_mdadm",
  "lsblk",
  "rand",
  "regex",
 ]
+
+[[package]]
+name = "hyraid_daemon"
+version = "0.0.1"
 
 [[package]]
 name = "hyraid_lvm2"

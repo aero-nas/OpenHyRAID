@@ -18,7 +18,6 @@
 
 use hyraid_utils::is_root;
 use std::process;
-use gpt;
 
 fn main() {
     if !is_root() {
@@ -26,10 +25,4 @@ fn main() {
         process::exit(1);
     }
     println!("THIS PROGRAM IS IN W.I.P. RUNNING IT WILL RESULT IN UNDEFINED BEHAVIOUR!!!");
-    let diskpath = std::path::Path::new("/dev/loop2");
-    let disk = gpt::GptConfig::new()
-        .writable(true)
-        .open(diskpath)
-        .expect("Failed to open disk");
-    println!("{:?}",disk.partitions());
 }
