@@ -1,5 +1,5 @@
 [package]
-name = "hyraid_array"
+name = "hyraid_mapper"
 edition.workspace = true
 authors.workspace = true
 version.workspace = true
