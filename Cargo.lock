@@ -79,21 +79,9 @@ name = "hyraid"
 version = "0.0.1"
 dependencies = [
  "gpt",
- "hyraid_array",
+ "hyraid_mapper",
  "hyraid_utils",
  "lsblk",
-]
-
-[[package]]
-name = "hyraid_array"
-version = "0.0.1"
-dependencies = [
- "gpt",
- "hyraid_lvm2",
- "hyraid_mdadm",
- "lsblk",
- "rand",
- "regex",
 ]
 
 [[package]]
@@ -103,6 +91,18 @@ version = "0.0.1"
 [[package]]
 name = "hyraid_lvm2"
 version = "0.0.1"
+
+[[package]]
+name = "hyraid_mapper"
+version = "0.0.1"
+dependencies = [
+ "gpt",
+ "hyraid_lvm2",
+ "hyraid_mdadm",
+ "lsblk",
+ "rand",
+ "regex",
+]
 
 [[package]]
 name = "hyraid_mdadm"

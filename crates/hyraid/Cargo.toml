@@ -8,6 +8,6 @@ license.workspace = true
 
 [dependencies]
 hyraid_utils = { workspace = true }
-hyraid_array = { workspace = true }
+hyraid_mapper = { workspace = true }
 lsblk = "0.6.1"
 gpt = "4.1.0"
