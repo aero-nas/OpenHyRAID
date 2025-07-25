@@ -70,11 +70,11 @@ use regex::Regex;
 use rand::Rng;
 
 fn random_string(length: usize) -> String {
-    return rand::rng()
+    rand::rng()
         .sample_iter(&rand::distr::Alphanumeric)
         .take(length)
         .map(char::from)
-        .collect();
+        .collect()
 }
 
 /// Ensures that the partition table of the disk is GPT
@@ -143,18 +143,19 @@ fn get_free_space(dev: &str) -> usize {
     );
     let sectors = gptdisk.find_free_sectors()[0];
     let sectors: usize = (sectors.1-sectors.0).try_into().unwrap();
-    return sectors*512
+    
+    sectors*512
 }
 
 /// Finds range from a vector whose sum is x
 fn find_range_sum(vector: Vec<usize>,sum: usize) -> Vec<usize> {
     let mut x = 0;
-    
+
     while vector[0..x].iter().sum::<usize>() != sum {
         x += 1;
     }
 
-    return vector[0..x].to_vec();
+    vector[0..x].to_vec()
 }
 
 /// Generates initial partition map
@@ -165,103 +166,120 @@ fn init_partition_map(disks: &[&str]) -> HashMap<String,Vec<usize>> {
     }
 
     sizes.sort_unstable();
-    let min_size: usize = sizes[0];
 
+    let min_size: usize = sizes[0];
+    
     let mut result: HashMap<String,Vec<usize>> = HashMap::new();
 
     let mut slices: Vec<usize> = vec![min_size];
-    for size in sizes[1..].iter() { // skip first element (smallest disk size)
-        slices.push(*size-sizes[sizes.index(*size)-1]);
+
+    // skip first element (smallest disk size)
+    for size in sizes[1..].iter() { 
+        let slice = *size-slices.iter().sum::<usize>(); // Should probably rewrite this line.
+        if slice != 0 {
+            slices.push(slice)
+        };
     }
 
     for disk in disks {
         let size = get_free_space(disk);
         let part = find_range_sum(slices.clone(),size);
-
         result.insert(disk.to_string(),part);
     }
+
     result
 }
 
-// TODO: REWRITE
 /// Create regular RAID arrays
-fn create_raid(map: &HashMap<String, Vec<usize>>,raid_level: usize) -> Vec<String> {
+fn create_raid_arrays(map: &HashMap<String, Vec<usize>>,raid_level: usize) -> Vec<String> {
     if !([0,1,5,6].contains(&raid_level)) {
         error_exit!("Incorrect RAID level. Only RAID0,RAID1,RAID5 and RAID6 is supported.");
     }
 
-    let mut sizes = HashSet::new();
-    for disk in map.iter() {
-        sizes.insert(disk.1[1]);
+    let mut unique_sizes = HashSet::<usize>::new();
+
+    for disk in map.keys() {
+        let diskpath = std::path::Path::new(disk);
+        let disk = unwrap_or_exit!(
+            gpt::GptConfig::new()
+                .open(diskpath),
+            "Failed to open disk."
+        );
+        for part in disk.partitions().values() {
+            unique_sizes.insert(
+                part.sectors_len()
+                    .unwrap()
+                    .try_into()
+                    .unwrap()
+            );
+        }
     }
+
     let mut groups: HashMap<usize, Vec<String>> = HashMap::new();
-    for size in sizes {
+
+    for size in unique_sizes {
         groups.insert(size,vec![]);
     }
-    for disk in map {
-        groups.get_mut(&disk.1[1])
-            .unwrap()
-            .push(disk.0.to_string());
+
+    for disk in map.keys() {
+        let diskpath = std::path::Path::new(disk);
+        let disk = unwrap_or_exit!(
+            gpt::GptConfig::new()
+                .open(diskpath),
+            "Failed to open disk."
+        );
+
+        for part in disk.partitions().values() {
+            let partition = "/dev/disk/by-partuuid/".to_string()+&part.part_guid.to_string();
+            let sectors: usize = part.sectors_len().unwrap() as usize;
+            groups.get_mut(&sectors).unwrap().push(partition);
+        }
     }
 
     let mut arrays: Vec<String> = vec![];
-
-    // loop through all the disks and create raid partitions based on the partition map.
-    for group in groups {
-        for disk in group.1.iter() {
-            let diskpath = std::path::Path::new(disk);
-            let disk = unwrap_or_exit!(
-                gpt::GptConfig::new()
-                    .open(diskpath),
-                "Failed to open disk."
-            );
-
-            // Get all the partitions of the disk and store them in a variable
-            let mut partitions: Vec<String> = vec![];
-            for part in disk.partitions() {
-                partitions.push("/dev/disk/by-uuid/".to_string()+&part.1.part_guid.to_string());
+    println!("{:?}",groups);
+    for group in groups.values() {
+        let partitions: Vec<&str> = group
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
+        // Generate a random name for the RAID array prefixed with "hyraid_md_"
+        // to denote that it is part of a HyRAID array and not a regular RAID array
+        
+        let devname = &format!("/dev/md/hyraid_md_{}",random_string(10))[..];
+        
+        let level: usize = {
+            match raid_level {
+                0 => 0,
+                1 => 1,
+                5 => {
+                    if partitions.len() < 3 {
+                        1 // RAID1
+                    } else {
+                        5 // RAID5
+                    }
+                },
+                6 => {
+                    if partitions.len() < 3 {
+                        1 // RAID1
+                    } else {
+                        6 // RAID6
+                    }
+                },
+                
+                // this is deadass needed?
+                _ => unreachable!()
             }
-            let partitions: Vec<&str> = partitions
-                .iter()
-                .map(|s| s.as_str())
-                .collect();
-
-            // Generate a random name for the RAID array prefixed with "hyraid_md_"
-            // to denote that it is part of a HyRAID array and not a regular RAID array
-            
-            let devname = &format!("/dev/md/hyraid_md_{}",random_string(16))[..];
-            
-            let level: usize = {
-                match raid_level {
-                    0 => 0,
-                    1 => 1,
-                    5 => {
-                        if partitions.len() < 3 {
-                            1 // RAID1
-                        } else {
-                            5 // RAID5
-                        }
-                    },
-                    6 => {
-                        if partitions.len() < 3 {
-                            1 // RAID1
-                        } else {
-                            6 // RAID6
-                        }
-                    },
-                    
-                    _ => unreachable!()
-                }
-            };
-
-            unwrap_or_exit_verbose!(
-                hyraid_mdadm::create_array(devname,&partitions,level),
-                "Error occurred while creating MD array"
-            );
-            arrays.push(devname.to_string())
-        }
+        };
+        
+        unwrap_or_exit_verbose!(
+            hyraid_mdadm::create_array(devname,&partitions,level),
+            "Error occurred while creating MD array"
+        );
+        arrays.push(devname.to_string())
     }
-    return arrays;
+    
+    arrays
 }
 
 /// Create LVM logical volume with all of the raid arrays.
@@ -290,6 +308,7 @@ pub fn create_array(disks: &[&str],raid_level: usize) {
         clear_partitions(disk);
     }
     let part_map = init_partition_map(disks);
+    println!("{:?}",part_map);
     for part in part_map.iter() {
         let diskpath = std::path::Path::new(part.0);
         let mut disk = unwrap_or_exit!(
@@ -310,10 +329,12 @@ pub fn create_array(disks: &[&str],raid_level: usize) {
 
         disk.write().unwrap();
     }
-    let raid_arrays = create_raid(&part_map,raid_level);
+    let raid_arrays = create_raid_arrays(&part_map,raid_level);
+    /*
     let slice = raid_arrays
         .iter()
         .map(|s| s.as_str())
         .collect::<Vec<&str>>();
-    create_lvm(&slice);
+    create_lvm(&slice); 
+    */
 }

@@ -114,40 +114,37 @@ pub fn create_array(
     partitions: &[&str],
     raid_level:usize
 ) -> Result<(),String> {
-        let posix = Regex::new(r"^[A-Za-z0-9\.\-_]*$").unwrap();
         let mut cmd = Command::new("mdadm");
-
         if !([0,1,5,6].contains(&raid_level)) {
             return Err(format!("Incorrect raid level:{}",raid_level));
         }
-
+        
         if raid_dev.len() > 32 {
             return Err(String::from("md device name too long (32 max)"));
         }
-
+        
         check_devs!(partitions);
         check_dev!(raid_dev);
-
+        
         cmd.arg("--create");
         
         let strip = raid_dev
             .trim_start_matches("/dev/")
             .trim_start_matches("md")
             .trim_start_matches("/");
-
+    
         if strip.parse::<usize>().is_ok() {
             cmd.arg(format!("/dev/md{}",strip));
         } else {
-            if !posix.is_match(raid_dev.trim_start_matches("/dev/")) {
-                return Err(format!("POSIX-incompatible device name: {}",&raid_dev));
-            }
-            cmd.arg(format!("/dev/md/{}",raid_dev.trim_start_matches("/dev/")));
+            cmd.arg(format!("/dev/md/{}",strip));
         }
-
+        
         cmd.args(["--metadata","1.2"]);
         cmd.arg(format!("--level={}",&raid_level.to_string()));
         cmd.args(["--raid-devices",&partitions.len().to_string()]);
-        
+        cmd.arg("--bitmap=internal");
+        cmd.args(partitions);
+
         run_cmd!(cmd)
     }
 

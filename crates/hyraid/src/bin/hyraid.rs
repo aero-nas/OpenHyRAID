@@ -16,13 +16,22 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+use hyraid_mapper;
 use hyraid_utils::is_root;
 use std::process;
 
 fn main() {
+    println!("THIS PROGRAM IS IN W.I.P. RUNNING IT WILL RESULT IN UNDEFINED BEHAVIOUR!!!");
     if !is_root() {
         println!("HyRAID must be run as root. Quitting.");
         process::exit(1);
     }
-    println!("THIS PROGRAM IS IN W.I.P. RUNNING IT WILL RESULT IN UNDEFINED BEHAVIOUR!!!");
+    hyraid_mapper::create_array(&[
+        "/dev/loop0",
+        "/dev/loop1",
+        "/dev/loop2",
+        "/dev/loop3",
+        "/dev/loop4",
+        "/dev/loop5"
+    ],5);
 }
