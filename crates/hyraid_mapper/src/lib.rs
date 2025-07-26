@@ -330,12 +330,10 @@ pub fn create_array(disks: &[&str],raid_level: usize) {
         disk.write().unwrap();
     }
     let raid_arrays = create_raid_arrays(&part_map,raid_level);
-    println!("{:?}",raid_arrays);
-    /*
+
     let slice = raid_arrays
         .iter()
         .map(|s| s.as_str())
         .collect::<Vec<&str>>();
     create_lvm(&slice); 
-    */
 }
