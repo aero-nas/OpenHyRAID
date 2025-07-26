@@ -302,7 +302,8 @@ fn create_lvm(raid_arrays: &[&str]) -> String {
 }
 
 /// Create a HyRAID array
-pub fn create_array(disks: &[&str],raid_level: usize) {
+/// returns LVM logical volume
+pub fn create_array(disks: &[&str],raid_level: usize) -> String {
     for disk in disks {
         ensure_gpt(disk);
         clear_partitions(disk);
@@ -326,7 +327,7 @@ pub fn create_array(disks: &[&str],raid_level: usize) {
                 None
             ).unwrap();
         }
-
+    
         disk.write().unwrap();
     }
     let raid_arrays = create_raid_arrays(&part_map,raid_level);
@@ -335,5 +336,6 @@ pub fn create_array(disks: &[&str],raid_level: usize) {
         .iter()
         .map(|s| s.as_str())
         .collect::<Vec<&str>>();
-    create_lvm(&slice); 
+    
+    create_lvm(&slice)
 }

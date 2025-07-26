@@ -1,9 +1,0 @@
-[package]
-name = "hyraid_daemon"
-edition.workspace = true
-authors.workspace = true
-version.workspace = true
-description.workspace = true
-license.workspace = true
-
-[dependencies]

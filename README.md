@@ -1,5 +1,7 @@
 # OpenHyRAID
 
+STILL working in progress!
+
 <p align="center">
     <img src="img/hyraid.svg"
       height="100"
