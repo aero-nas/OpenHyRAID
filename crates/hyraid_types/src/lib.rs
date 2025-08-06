@@ -76,21 +76,16 @@ pub struct Disk {
 }
 
 impl Disk {
-    pub fn from(disk: gpt::GptDisk<std::fs::File>) -> Self {
+    pub fn from(disk: gpt::GptDisk<std::fs::File>,sector_size: usize) -> Self {
         let mut parts: Vec<DiskPartition> = vec![];
         for partition in disk.partitions().values() {
             parts.push(
                 DiskPartition { 
                     path: Some(hyraid_gpt::get_path_of_partition(&partition)),
                     size: (
-                        partition
-                            .sectors_len()
-                            .unwrap() 
-                            * 
-                        TryInto::<u64>::try_into(
-                            hyraid_gpt::get_sector_size(
-                                &hyraid_gpt::get_path_of_partition(&partition))
-                            ).unwrap()
+                        partition.sectors_len().unwrap() 
+                        * 
+                        TryInto::<u64>::try_into(sector_size).unwrap()
                     ).try_into().unwrap()
                 }
             )

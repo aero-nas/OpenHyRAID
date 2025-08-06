@@ -41,7 +41,6 @@ pub fn get_path_of_partition(partition: &Partition) -> String {
 /// Waits until partition actually exists
 pub fn validate_partition(partition: Partition) {
     while !(Path::new(&get_path_of_partition(&partition)).exists()) {
-        println!("hanged. {}",get_path_of_partition(&partition));
         thread::sleep(Duration::from_millis(100));
     };
 }

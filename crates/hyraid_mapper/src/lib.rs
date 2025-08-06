@@ -175,8 +175,8 @@ fn create_partition_map(part_map: PartitionMap) -> PartitionMap {
                 0,
                 None
             ).unwrap();
-            gptdisk.write_inplace().unwrap();
         }
+        gptdisk.write().unwrap();
         let gptdisk = unwrap_or_exit!(
             gpt::GptConfig::new()
                 .writable(true)
@@ -241,7 +241,7 @@ fn init_raid_map(part_map: PartitionMap) -> RaidMap {
         }
     }
 
-    todo!()
+    raid_map
 }
 
 /// Determine RAID level automatically
@@ -349,7 +349,12 @@ pub fn create_hyraid_array(name: String,disks: &[&str], raid_level: usize) -> St
                             .open(diskpath),
                         "Failed to open disk."
                     );
-                    hyraid_types::Disk::from(gptdisk)
+                    hyraid_types::Disk::from(gptdisk,get_sector_size(
+                        diskpath
+                            .as_os_str()
+                            .to_str()
+                            .unwrap()
+                    ))
                 }).collect(),
             raid_map: raid_map,
             slices,
