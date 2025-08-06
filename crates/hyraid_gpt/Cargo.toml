@@ -1,5 +1,5 @@
 [package]
-name = "hyraid_mdadm"
+name = "hyraid_gpt"
 edition.workspace = true
 authors.workspace = true
 version.workspace = true
@@ -7,5 +7,6 @@ description.workspace = true
 license.workspace = true
 
 [dependencies]
+gpt = "4.1.0"
 regex = "1.11.1"
 hyraid_utils = { workspace = true }

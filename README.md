@@ -1,12 +1,13 @@
 # OpenHyRAID
 
-STILL working in progress!
-
+<p style="font-size:40px">STILL working in progress! Absolutely not ready for production use.</p>
 <p align="center">
-    <img src="img/hyraid.svg"
-      height="100"
-      style="padding:16px;"  
-    >
+  <!--
+  <img src="img/hyraid.svg"
+    height="100"
+    style="padding:16px;"  
+  >
+  --!>
 </p>
 
 Open-source, high-level mdadm wrapper to implement Synology SHR written in Rust.
@@ -17,11 +18,9 @@ SHR is a proprietary raid level that allows adding drives that are larger withou
 
 # SHR vs HyRAID
 
-HyRAID supports RAID0,RAID1,RAID5, and RAID6. While SHR only supports RAID5 (SHR-1) and RAID6 (SHR-2)
-
 HyRAID is free and licensed under GPLv2. While SHR is proprietary.
 
-HyRAID has priority aarch64 (architecture of Raspberry Pi 5/CM5) support.
+HyRAID also has priority aarch64 (architecture of Raspberry Pi 5/CM5) support.
 
 made with ❤️ by lizard >w<
 

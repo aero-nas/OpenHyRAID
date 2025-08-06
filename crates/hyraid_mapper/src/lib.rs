@@ -17,57 +17,56 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-
 use std::{
-    collections::{HashMap, HashSet},
-    io::Write,
-    ops::Index,
-    process::{exit, Command, Stdio}
+    collections::HashMap, 
+    path::Path, 
+    process::exit
 };
 
-/// Unwrap result but quit with exit code 1 instead of panicking
-macro_rules! unwrap_or_exit {
-    ($result:expr,$expect:expr) => {{
-        match $result {
-            Ok(val) => val,
-            Err(_) => {
-                error_exit!($expect);
-            }
-        }
-    }};
-}
+use hyraid_types::{
+    Disk,
+    DiskPartition, 
+    PartitionMap, 
+    PartitionSlices, 
+    RaidMap,
+    HyraidArray
+};
 
-/// Unwrap result but quit with exit code 1 instead of panicking, printing the error stored in result.
-macro_rules! unwrap_or_exit_verbose {
-    ($result:expr,$expect:expr) => {{
-        match $result {
-            Ok(val) => val,
-            Err(err) => {
-                error_exit!($expect,err);
-            }
-        }
-    }}
-}
+use hyraid_lvm2::{
+    lvm_lv_create,
+    lvm_pv_create,
+    lvm_vg_create,
+    lvm_pv_resize,
+    lvm_vg_extend
+};
 
-/// Quit with exit code 1
-macro_rules! error_exit {
-    ($error:expr) => {
-        eprintln!("{}",$error);
-        exit(1);
-    };
-    ($description:expr,$error2:expr) => {
-        eprintln!("{}",$description);
-        eprintln!("{}",$error2);
-        exit(1);
-    };
-}
+use hyraid_mdadm::{
+    create_raid_array, 
+    fail_from_raid_array, 
+    remove_from_raid_array,
+    add_to_raid_array
+};
 
-use hyraid_mdadm;
-use hyraid_lvm2;
+use hyraid_utils::{
+    error_exit,
+    unwrap_or_exit,
+    unwrap_or_exit_verbose
+};
 
-use gpt::{self, GptDisk};
-use regex::Regex;
+use hyraid_gpt::{
+    get_path_of_partition,
+    clear_partitions,
+    get_sector_size,
+    ensure_gpt,
+    get_free_space,
+    validate_partition
+};
+
+use gpt;
+
 use rand::Rng;
+
+static HYRAID_JSON_PATH: &'static str = "/etc/hyraid.json";
 
 fn random_string(length: usize) -> String {
     rand::rng()
@@ -77,74 +76,50 @@ fn random_string(length: usize) -> String {
         .collect()
 }
 
-/// Ensures that the partition table of the disk is GPT
-fn ensure_gpt(disk: &str) {
-    let cmd = unwrap_or_exit!(
-        Command::new("sfdisk")
-            .arg("-d")
-            .arg(disk)
-            .output(),
-        format!("Incorrect device: {}",disk)
-    );
-
-    let stdout = String::from_utf8(cmd.stdout).unwrap();
-    let regex = Regex::new("label: (?<table>.+)").unwrap();
-    let table = regex.captures(&stdout).unwrap()
-        .name("table")
-        .unwrap()
-        .as_str();
-
-    if table == "gpt" {
-        return; // disk is already gpt
+/// Generates slices from disks.
+fn gen_slices(disks: &[&str]) -> PartitionSlices {
+    let mut sizes = PartitionSlices::new();
+    for disk in disks {
+        sizes.push(get_free_space(disk));
     }
-    
-    let mut process = unwrap_or_exit!(
-        Command::new("sfdisk")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::null())
-            .arg(disk)
-            .spawn(),
-        format!("Incorrect disk: {}",disk)
-    );
 
-    process.stdin
-        .as_mut()
-        .unwrap()
-        .write_all(b"label: gpt\n\twrite\n")
-        .unwrap(); // this is kind of a hack but works
+    sizes.sort_unstable();
 
-    process.wait().unwrap();
-    println!("Converted disk {} to GPT partition table",disk);
+    let min_size: usize = sizes[0];
+
+    let mut slices: Vec<usize> = vec![min_size];
+
+    // skip first element (smallest disk size)
+    for size in sizes[1..].iter() { 
+        let slice = *size-slices.iter().sum::<usize>(); // Should probably rewrite this line.
+        if slice != 0 {
+            slices.push(slice)
+        };
+    }
+
+    slices
 }
 
-/// Deletes all partitions on disk
-fn clear_partitions(disk: &str) {
-    let diskpath = std::path::Path::new(disk);
-    let mut gptdisk: GptDisk<std::fs::File> = unwrap_or_exit!(
-        gpt::GptConfig::new()
-            .writable(true)
-            .open(diskpath),
-        "Failed to open disk."
-    );
-    let parts = gptdisk.partitions().clone();
-    for part in parts {
-        gptdisk.remove_partition(part.0);
+/// Re-compute slices to account for larger disks being added
+fn recompute_slices(disks: &[&str], slices: &PartitionSlices) -> PartitionSlices {
+    let mut sizes = PartitionSlices::new();
+    for disk in disks {
+        sizes.push(get_free_space(disk));
     }
-    gptdisk.write().unwrap();
-}
 
-/// Gets free space on a disk in bytes
-fn get_free_space(dev: &str) -> usize {
-    let diskpath = std::path::Path::new(dev);
-    let gptdisk: GptDisk<std::fs::File> = unwrap_or_exit!(
-        gpt::GptConfig::new()
-            .open(diskpath),
-        "Failed to open disk."
-    );
-    let sectors = gptdisk.find_free_sectors()[0];
-    let sectors: usize = (sectors.1-sectors.0).try_into().unwrap();
+    sizes.sort_unstable();
+
+    let mut slices: PartitionSlices = slices.clone();
+
+    // skip first element (smallest disk size)
+    for size in sizes[1..].iter() { 
+        let slice = *size-slices.iter().sum::<usize>(); // Should probably rewrite this line.
+        if slice != 0 {
+            slices.push(slice)
+        };
+    }
     
-    sectors*512
+    slices
 }
 
 /// Finds range from a vector whose sum is x
@@ -158,184 +133,381 @@ fn find_range_sum(vector: Vec<usize>,sum: usize) -> Vec<usize> {
     vector[0..x].to_vec()
 }
 
-/// Generates initial partition map
-fn init_partition_map(disks: &[&str]) -> HashMap<String,Vec<usize>> {
-    let mut sizes: Vec<usize> = vec![];
-    for disk in disks {
-        sizes.push(get_free_space(disk));
-    }
-
-    sizes.sort_unstable();
-
-    let min_size: usize = sizes[0];
-    
-    let mut result: HashMap<String,Vec<usize>> = HashMap::new();
-
-    let mut slices: Vec<usize> = vec![min_size];
-
-    // skip first element (smallest disk size)
-    for size in sizes[1..].iter() { 
-        let slice = *size-slices.iter().sum::<usize>(); // Should probably rewrite this line.
-        if slice != 0 {
-            slices.push(slice)
-        };
-    }
+/// Lay-out partition map
+fn make_partition_map(disks: &[&str], slices: &PartitionSlices) -> PartitionMap {
+    let mut result = PartitionMap::new();
 
     for disk in disks {
         let size = get_free_space(disk);
-        let part = find_range_sum(slices.clone(),size);
+        let part = find_range_sum(slices.clone(),size).iter().map(
+            |x| {
+                DiskPartition {
+                    size: *x,
+                    path: None
+                }
+            }
+        ).collect();
+
         result.insert(disk.to_string(),part);
     }
 
     result
 }
 
-/// Create regular RAID arrays
-fn create_raid_arrays(map: &HashMap<String, Vec<usize>>,raid_level: usize) -> Vec<String> {
-    if !([0,1,5,6].contains(&raid_level)) {
-        error_exit!("Incorrect RAID level. Only RAID0,RAID1,RAID5 and RAID6 is supported.");
-    }
-
-    let mut unique_sizes = HashSet::<usize>::new();
-
-    for disk in map.keys() {
-        let diskpath = std::path::Path::new(disk);
-        let disk = unwrap_or_exit!(
-            gpt::GptConfig::new()
-                .open(diskpath),
-            "Failed to open disk."
-        );
-        for part in disk.partitions().values() {
-            unique_sizes.insert(
-                part.sectors_len()
-                    .unwrap()
-                    .try_into()
-                    .unwrap()
-            );
-        }
-    }
-
-    let mut groups: HashMap<usize, Vec<String>> = HashMap::new();
-
-    for size in unique_sizes {
-        groups.insert(size,vec![]);
-    }
-
-    for disk in map.keys() {
-        let diskpath = std::path::Path::new(disk);
-        let disk = unwrap_or_exit!(
-            gpt::GptConfig::new()
-                .open(diskpath),
-            "Failed to open disk."
-        );
-
-        for part in disk.partitions().values() {
-            let partition = "/dev/disk/by-partuuid/".to_string()+&part.part_guid.to_string();
-            let sectors: usize = part.sectors_len().unwrap() as usize;
-            groups.get_mut(&sectors).unwrap().push(partition);
-        }
-    }
-
-    let mut arrays: Vec<String> = vec![];
-    println!("{:?}",groups);
-    for group in groups.values() {
-        let partitions: Vec<&str> = group
-            .iter()
-            .map(|s| s.as_str())
-            .collect();
-        // Generate a random name for the RAID array prefixed with "hyraid_md_"
-        // to denote that it is part of a HyRAID array and not a regular RAID array
-        
-        let devname = &format!("/dev/md/hyraid_md_{}",random_string(10))[..];
-        
-        let level: usize = {
-            match raid_level {
-                0 => 0,
-                1 => 1,
-                5 => {
-                    if partitions.len() < 3 {
-                        1 // RAID1
-                    } else {
-                        5 // RAID5
-                    }
-                },
-                6 => {
-                    if partitions.len() < 3 {
-                        1 // RAID1
-                    } else {
-                        6 // RAID6
-                    }
-                },
-                
-                // this is deadass needed?
-                _ => unreachable!()
-            }
-        };
-        
-        unwrap_or_exit_verbose!(
-            hyraid_mdadm::create_array(devname,&partitions,level),
-            "Error occurred while creating MD array"
-        );
-        arrays.push(devname.to_string())
-    }
-    
-    arrays
-}
-
-/// Create LVM logical volume with all of the raid arrays.
-fn create_lvm(raid_arrays: &[&str]) -> String {
-    let lv_name = format!("hyraid_lv_{}",random_string(16));
-    unwrap_or_exit_verbose!(
-        hyraid_lvm2::lvm_pv_create(raid_arrays),
-        "Error occured while setting up LVM"
-    );
-    unwrap_or_exit_verbose!(
-        hyraid_lvm2::lvm_vg_create(&lv_name[..],raid_arrays),
-        "Error occured while setting up LVM"
-    );
-    unwrap_or_exit_verbose!(
-        hyraid_lvm2::lvm_lv_create(&lv_name[..],raid_arrays,hyraid_lvm2::SizeFormat::EXTENTS,"100%FREE"),
-        "Error occured while setting up LVM"
-    );
-    
-    lv_name
-}
-
-/// Create a HyRAID array
-/// returns LVM logical volume
-pub fn create_array(disks: &[&str],raid_level: usize) -> String {
-    for disk in disks {
-        ensure_gpt(disk);
-        clear_partitions(disk);
-    }
-    let part_map = init_partition_map(disks);
-    println!("{:?}",part_map);
-    for part in part_map.iter() {
-        let diskpath = std::path::Path::new(part.0);
-        let mut disk = unwrap_or_exit!(
+/// Creates partitions from partition map and returns same `PartitionMap`, 
+/// this time with path of the partition included.
+fn create_partition_map(part_map: PartitionMap) -> PartitionMap {
+    let mut map = PartitionMap::new();
+    for (disk,parts) in part_map {
+        let sector_size = get_sector_size(&disk);
+        let diskpath = std::path::Path::new(&disk);
+        let mut gptdisk = unwrap_or_exit!(
             gpt::GptConfig::new()
                 .writable(true)
                 .open(diskpath),
             "Failed to open disk."
         );
-        for partition in part.1 {
-            disk.add_partition(
+        for part in parts {
+            gptdisk.add_partition(
                 "hyraid_partition",
-                (*partition).try_into().unwrap(),
+                part.size.try_into().unwrap(),
                 gpt::partition_types::LINUX_FS,
                 0,
                 None
             ).unwrap();
+            gptdisk.write_inplace().unwrap();
         }
-    
-        disk.write().unwrap();
+        let gptdisk = unwrap_or_exit!(
+            gpt::GptConfig::new()
+                .writable(true)
+                .open(diskpath),
+            "Failed to open disk."
+        );
+        let mut partitions: Vec<DiskPartition> = vec![];
+        for (_,partition) in gptdisk.partitions() {
+            let part_path = get_path_of_partition(&partition.clone());
+            partitions.push(
+                DiskPartition { 
+                    path: Some(part_path), 
+                    size: (partition.sectors_len().unwrap() * TryInto::<u64>::try_into(sector_size).unwrap())
+                        .try_into()
+                        .unwrap()
+                }
+            );
+            validate_partition(partition.clone());
+        }
+        partitions.sort_by_key(|k| k.size);
+        map.insert(disk,partitions);
     }
-    let raid_arrays = create_raid_arrays(&part_map,raid_level);
 
-    let slice = raid_arrays
-        .iter()
-        .map(|s| s.as_str())
-        .collect::<Vec<&str>>();
+    map
+}
+
+/// Create initial RAID arrays
+fn init_raid_map(part_map: PartitionMap) -> RaidMap {
+    let mut raid_map = RaidMap::new();
     
-    create_lvm(&slice)
+    let mut part_map: Vec<(String,Vec<DiskPartition>)> = part_map.into_iter().collect();
+    part_map.sort_unstable_by_key(|(_,parts)| parts.len());
+    part_map.reverse();
+
+    let mut groups: HashMap<usize,Vec<DiskPartition>> = HashMap::new();
+    
+    for i in 0..part_map[0].1.len() {
+        groups.insert(i,vec![]);
+    }
+
+    for (group,partitions) in &mut groups {
+        for (_,parts) in &part_map {
+            if let Some(x) = parts.get(*group) {
+                partitions.push(x.clone());
+            }
+        }
+    }
+
+    for group in groups.values() {
+        let slice: Vec<DiskPartition> = group
+            .iter()
+            .map(
+                |s| {
+                    s.clone()
+                }
+            )
+            .collect();
+        let devname = &format!("/dev/md/hyraid_md_{}",random_string(10))[..];
+
+        if slice.len() != 1 {
+            raid_map.insert(devname.to_string(),slice);
+        }
+    }
+
+    todo!()
+}
+
+/// Determine RAID level automatically
+fn find_raid_level(partitions: usize,intended_raid_level: usize) -> usize {
+    match intended_raid_level {
+        0 => 0,
+        1 => 1,
+        5 => {
+            if partitions < 3 {
+                1 // RAID1
+            } else {
+                5 // RAID5
+            }
+        },
+        6 => {
+            if partitions < 3 {
+                1 // RAID1
+            } else {
+                6 // RAID6
+            }
+        },
+
+        _ => {
+            error_exit!("Incorrect RAID level. Only RAID0,RAID1,RAID5 and RAID6 is supported.");
+        }
+    }
+}
+
+fn into_paths_slice(partitions: Vec<DiskPartition>) -> Vec<String> {
+    let slice: Vec<String> = partitions
+        .iter()
+        .map(|s| s.path.clone().unwrap())
+        .collect();
+
+    slice.to_vec()
+}
+
+fn create_init_raid_map(raid_map: RaidMap,raid_level: usize) {
+    for (raid_dev,partitions) in raid_map {
+        let level = find_raid_level(partitions.len(),raid_level);
+
+        let slice: Vec<String> = into_paths_slice(partitions);
+        let slice: Vec<&str> = slice.iter().map(
+            |s| s.as_str()
+        ).collect();
+        
+        unwrap_or_exit_verbose!(
+            create_raid_array(&raid_dev,&slice,level),
+            "Error occurred while creating MD array"
+        );
+    }
+}
+
+/// Create LVM logical volume with all of the raid arrays.
+/// basically combine the raid arrays into one.
+fn create_lvm(raid_map: &RaidMap) -> String {
+    let raid_arrays: &Vec<&str> = &raid_map.keys()
+        .into_iter()
+        .map(|s| s.as_str())
+        .collect();
+    let lv_name = format!("hyraid_vg_{}",random_string(16));
+    unwrap_or_exit_verbose!(
+        lvm_pv_create(raid_arrays),
+        "Error occured while setting up LVM"
+    );
+    unwrap_or_exit_verbose!(
+        lvm_vg_create(&lv_name[..],raid_arrays),
+        "Error occured while setting up LVM"
+    );
+    unwrap_or_exit_verbose!(
+        lvm_lv_create(&lv_name[..],raid_arrays,hyraid_lvm2::SizeFormat::EXTENTS,"100%FREE"),
+        "Error occured while setting up LVM"
+    );
+    
+    "/dev/".to_string() + &lv_name + &"/lvol0"
+}
+
+pub fn create_hyraid_array(name: String,disks: &[&str], raid_level: usize) -> String {
+    for disk in disks {
+        ensure_gpt(disk);
+        clear_partitions(disk);
+    }
+
+    let slices = gen_slices(disks);
+    
+    let part_map = make_partition_map(disks,&slices);
+    let part_map = create_partition_map(part_map);
+
+    let raid_map = init_raid_map(part_map);
+    create_init_raid_map(raid_map.clone(),raid_level.clone());
+    // Combine disks
+    let lvm_lv = create_lvm(&raid_map);
+
+    if Path::new(&lvm_lv).exists() {
+        let entry = HyraidArray {
+            name: name,
+            lvm_lv_path: lvm_lv.clone(),
+            raid_level, 
+            disks: disks
+                .iter()
+                .map(|&s| {
+                    let diskpath = std::path::Path::new(&s);
+                    let gptdisk = unwrap_or_exit!(
+                        gpt::GptConfig::new()
+                            .open(diskpath),
+                        "Failed to open disk."
+                    );
+                    hyraid_types::Disk::from(gptdisk)
+                }).collect(),
+            raid_map: raid_map,
+            slices,
+        };
+        hyraid_json::write_array(HYRAID_JSON_PATH,entry);
+    }
+
+    lvm_lv
+}
+
+pub fn fail_from_hyraid_array(name: String, disks: &[&str]) {
+    for disk in disks {
+        let mut partitions: Vec<DiskPartition> = vec![];
+        let gptdisk = unwrap_or_exit!(
+            gpt::GptConfig::new()
+                .open(disk),
+            "Failed to open disk."
+        );
+        for partition in gptdisk.partitions().values() {
+            partitions.push(DiskPartition::from(partition));
+        }
+        match hyraid_json::read_arrays(HYRAID_JSON_PATH).iter().find(|x| x.name == name) {
+            Some(entry) => {
+                for part in partitions.clone() {
+                    let raid_array = entry.raid_map
+                        .iter()
+                        .find(|x| x.1.contains(&part));
+                    if let Some(array) = raid_array {
+                        for partition in &partitions {
+                            if array.1.contains(&partition) {
+                                unwrap_or_exit_verbose!(
+                                    fail_from_raid_array(array.0,&[&partition.path.clone().unwrap().as_str()]),
+                                    "Failed to mark drive as faulty. mdadm output:"
+                                );
+                                println!("Marked disk(s) as faulty on array.");
+                            }
+                        }
+                    }
+                } 
+            },
+            None => {
+                error_exit!("Error: No such HyRAID array.");
+            }
+        }
+    }
+}
+
+pub fn add_disk_to_hyraid_array(name: String, disks: &[&str]) {
+    match hyraid_json::read_arrays(HYRAID_JSON_PATH).iter().find(|x| x.name == name) {
+        Some(entry) => {
+            // Get all the stuff we need from the 
+            let mut raid_map_entry = entry.raid_map.clone();
+            let slices = &entry.slices;
+
+            // Re-compute the slices to account for larger disks being added
+            // since a larger disk means the current slices won't be enough
+            let slices = &recompute_slices(disks,slices);
+
+            let part_map = make_partition_map(disks,slices);
+            let part_map = create_partition_map(part_map);
+            let raid_map = init_raid_map(part_map);
+            
+            for (array_name,partitions) in &raid_map.clone() {
+                let raid_array = raid_map_entry.iter().find(
+                    |x| &x.1[0].size == &partitions[0].size
+                );
+                
+                if let Some((array,array_partitions)) = raid_array {
+                    let slice = into_paths_slice(partitions.to_vec());
+                    let slice: Vec<&str> = slice.iter().map(
+                        |s| s.as_str()
+                    ).collect();
+                    unwrap_or_exit_verbose!(
+                        add_to_raid_array(&array,&slice),
+                        "Failed to add disk to array. mdadm output:"
+                    );
+                    unwrap_or_exit_verbose!(
+                        lvm_pv_resize(&[&array]),
+                        "Failed to add disk to array. LVM (lvresize) output:"
+                    );
+                    raid_map_entry.insert(array.to_string(),array_partitions.to_vec());
+                } else {
+                    let slice = into_paths_slice(partitions.to_vec());
+                    let slice: Vec<&str> = slice.iter().map(
+                        |s| s.as_str()
+                    ).collect();
+                    let level = find_raid_level(slice.len(),entry.raid_level);
+                    unwrap_or_exit_verbose!(
+                        create_raid_array(&array_name,&slice,level),
+                        "Failed to add disk to array. mdadm output:"
+                    );
+                    unwrap_or_exit_verbose!(
+                        lvm_pv_create(&[&array_name]),
+                        "Failed to add disk to array. LVM (lvresize) output:"
+                    );
+                    unwrap_or_exit_verbose!(
+                        lvm_vg_extend(entry.lvm_lv_path.trim_end_matches("/lvol0"),&[&array_name]),
+                        "Failed to add disk to array. LVM (lvresize) output:"
+                    );
+                    raid_map_entry.insert(array_name.to_string(),partitions.to_vec());
+                }
+
+                let mut disks_entry = entry.disks.clone();
+                for (_,disk) in &raid_map {
+                    disks_entry.push(Disk{
+                        partitions: disk.to_vec(),
+                    })
+                }
+
+                hyraid_json::modify(HYRAID_JSON_PATH,entry.name.clone(),HyraidArray {
+                    name: entry.name.clone(),
+                    lvm_lv_path: entry.lvm_lv_path.clone(),
+                    disks: disks_entry.to_vec(),
+                    slices: slices.to_vec(),
+                    raid_level: entry.raid_level,
+                    raid_map: raid_map.clone()
+                });
+            }
+        },
+        None => {
+            error_exit!("Error: No such HyRAID array.");
+        }
+    }
+}
+
+pub fn remove_disk_from_array(name: String, disks: &[&str]) {
+    for disk in disks {
+        let mut partitions: Vec<DiskPartition> = vec![];
+        let gptdisk = unwrap_or_exit!(
+            gpt::GptConfig::new()
+                .open(disk),
+            "Failed to open disk."
+        );
+        for partition in gptdisk.partitions().values() {
+            partitions.push(DiskPartition::from(partition));
+        }
+        match hyraid_json::read_arrays(HYRAID_JSON_PATH).iter().find(|x| x.name == name) {
+            Some(entry) => {
+                for part in partitions.clone() {
+                    let raid_array = entry.raid_map
+                        .iter()
+                        .find(|x| x.1.contains(&part));
+                    if let Some(array) = raid_array {
+                        for partition in &partitions {
+                            if array.1.contains(&partition) {
+                                unwrap_or_exit_verbose!(
+                                    remove_from_raid_array(array.0,&[&partition.path.clone().unwrap().as_str()]),
+                                    "Failed to remove disk(s). mdadm output:"
+                                );
+                                println!("Removed disk(s) from array.");
+                            }
+                        }
+                    }
+                } 
+            },
+            None => {
+                error_exit!("Error: No such HyRAID array.");
+            }
+        }
+    }
 }

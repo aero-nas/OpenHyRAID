@@ -18,6 +18,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+use hyraid_utils::run_cmd;
 use std::process::Command;
 use regex::Regex;
 
@@ -39,19 +40,6 @@ macro_rules! check_devs {
     }
 }
 
-/// Macro to run command and return result.
-macro_rules! run_cmd {
-    ($cmd:expr) => {
-        match $cmd.output() {
-            Ok(_) => {
-                return Ok(())
-            }
-            Err(err) => {
-                return Err(err.to_string())
-            }
-        }
-    };
-}
 
 /// Represents a software RAID device (array)
 #[derive(Debug)]
@@ -109,7 +97,7 @@ pub struct RaidDev {
 }
 
 /// Create new (regular) RAID array, return error as a string if failed.
-pub fn create_array(
+pub fn create_raid_array(
     raid_dev: &str,
     partitions: &[&str],
     raid_level:usize
@@ -150,7 +138,7 @@ pub fn create_array(
 
 
 /// Mark partitions as faulty, return error as a string if failed.
-pub fn fail_from_array(
+pub fn fail_from_raid_array(
     raid_dev: &str,
     partitions: &[&str],
 ) -> Result<(),String> {
@@ -162,12 +150,12 @@ pub fn fail_from_array(
     cmd.arg(raid_dev);
     cmd.arg("--fail");
     cmd.args(partitions);
-    
+    println!("{:?}",cmd.get_args());
     run_cmd!(cmd)
 }
 
 /// Remove partition from array, return error as a string if failed.
-pub fn remove_from_array(
+pub fn remove_from_raid_array(
     raid_dev: &str,
     partitions: &[&str],
 ) -> Result<(),String> {
@@ -183,8 +171,23 @@ pub fn remove_from_array(
     run_cmd!(cmd)
 }
 
+pub fn grow_raid_array(
+    raid_dev: &str,
+    raid_level:usize
+) -> Result<(),String> {
+    let mut cmd = Command::new("mdadm");
+    
+    check_dev!(raid_dev);
+    
+    cmd.arg("--grow");
+    cmd.arg(raid_dev);
+    cmd.arg(format!("--level={}",&raid_level.to_string()));
+
+    run_cmd!(cmd)
+}
+
 /// Add partitions to existing array, return error as a string if failed.
-pub fn add_to_array(
+pub fn add_to_raid_array(
     raid_dev: &str,
     partitions: &[&str],
 ) -> Result<(),String> {
@@ -198,6 +201,29 @@ pub fn add_to_array(
     cmd.args(partitions);
 
     run_cmd!(cmd)
+}
+
+/// Returns true if the partition is in a raid array
+pub fn is_part_in_raid_array(
+    dev: &str
+) -> Result<bool,String> {
+    let cmd = Command::new("mdadm")
+        .arg("--detail")
+        .arg(dev)
+        .output()
+        .unwrap();
+
+    if cmd.stderr != b"" {
+        return Err(String::from_utf8(cmd.stderr).unwrap())
+    }
+
+    let stdout = String::from_utf8(cmd.stdout).unwrap();
+
+    // if the partition is in an array, 
+    // mdadm will output a bunch of stuff
+    // which will contain MD_UUID=whatever
+    // kind of a hack but should work perfectly
+    Ok(stdout.contains("MD_UUID")) 
 }
 
 /// Get details of RAID array, return error as a string if failed.
@@ -267,41 +293,41 @@ pub fn get_detail(
         RaidDev {
             raid_devices: 
                 regex["raid_devices"]
-                .to_string()
-                .parse::<usize>()
-                .unwrap(),
+                    .to_string()
+                    .parse::<usize>()
+                    .unwrap(),
             working_devices: 
                 working_devices
-                .parse::<usize>()
-                .unwrap(),
+                    .parse::<usize>()
+                    .unwrap(),
             active_devices: 
                 active_devices
-                .parse::<usize>()
-                .unwrap(),
+                    .parse::<usize>()
+                    .unwrap(),
             all_devices:
                 all_devices
-                .parse::<usize>()
-                .unwrap(),
+                    .parse::<usize>()
+                    .unwrap(),
             failed_devices: 
                 failed_devices
-                .parse::<usize>()
-                .unwrap(),
+                    .parse::<usize>()
+                    .unwrap(),
             spare_devices: 
                 spare_devices
-                .parse::<usize>()
-                .unwrap(),                
+                    .parse::<usize>()
+                    .unwrap(),                
             full_size: 
                 full_size
-                .parse::<usize>()
-                .unwrap(),
+                    .parse::<usize>()
+                    .unwrap(),
             used_size: 
                 used_size
-                .parse::<usize>()
-                .unwrap(),
+                    .parse::<usize>()
+                    .unwrap(),
             events:
                 events
-                .parse::<usize>()
-                .unwrap(),
+                    .parse::<usize>()
+                    .unwrap(),
 
             level: level,
             layout: layout,

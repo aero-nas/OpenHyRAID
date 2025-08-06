@@ -21,3 +21,57 @@ use nix::unistd::{getuid,ROOT};
 pub fn is_root() -> bool {
     return getuid() == ROOT;
 }
+
+#[macro_export]
+/// Macro to run command and return result.
+macro_rules! run_cmd {
+    ($cmd:expr) => {
+        match $cmd.output() {
+            Ok(_) => {
+                return Ok(())
+            }
+            Err(err) => {
+                return Err(err.to_string())
+            }
+        }
+    };
+}
+
+/// Unwrap result but quit with exit code 1 instead of panicking
+#[macro_export]
+macro_rules! unwrap_or_exit {
+    ($result:expr,$expect:expr) => {{
+        match $result {
+            Ok(val) => val,
+            Err(_) => {
+                error_exit!($expect);
+            }
+        }
+    }};
+}
+
+/// Unwrap result but quit with exit code 1 instead of panicking, printing the error stored in result.
+#[macro_export]
+macro_rules! unwrap_or_exit_verbose {
+    ($result:expr,$expect:expr) => {{
+        match $result {
+            Ok(val) => val,
+            Err(err) => {
+                error_exit!($expect,err);
+            }
+        }
+    }}
+}
+/// Quit with exit code 1
+#[macro_export]
+macro_rules! error_exit {
+    ($error:expr) => {
+        eprintln!("{}",$error);
+        exit(1);
+    };
+    ($description:expr,$error2:expr) => {
+        eprintln!("{}",$description);
+        eprintln!("{}",$error2);
+        exit(1);
+    };
+}

@@ -19,30 +19,18 @@
 */
 
 use std::{process::Command};
+use hyraid_utils::run_cmd;
 
 pub enum SizeFormat {
     EXTENTS,
     SIZE
 }
 
-/// Macro to run command and return result.
-macro_rules! run_cmd {
-    ($cmd:expr) => {
-        match $cmd.output() {
-            Ok(_) => {
-                return Ok(())
-            }
-            Err(err) => {
-                return Err(err.to_string())
-            }
-        }
-    };
-}
-
 /// Initialize LVM Physical Volume
 pub fn lvm_pv_create(partitions: &[&str]) -> Result<(),String> {
     let mut output = Command::new("pvcreate");    
     output.args(partitions);
+    println!("{:?}",output.get_args());
     run_cmd!(output)
 }
 
@@ -51,6 +39,7 @@ pub fn lvm_vg_create(group_name: &str, partitions: &[&str]) -> Result<(),String>
     let mut output = Command::new("vgcreate");
     output.arg(group_name);
     output.args(partitions);
+    println!("{:?}",output.get_args());
     run_cmd!(output)
 }
 
@@ -64,6 +53,7 @@ pub fn lvm_lv_create(group_name: &str, partitions: &[&str], size_type: SizeForma
         SizeFormat::SIZE => output.arg("-L")
     };
     output.arg(size);
+    println!("{:?}",output.get_args());
     run_cmd!(output)
 }
 
@@ -89,6 +79,7 @@ pub fn lvm_lv_resize(partition: &str, resizefs: bool, size_type: SizeFormat, siz
     run_cmd!(output)
 }
 
+/// Add Physical Volume to Volume Group
 pub fn lvm_vg_extend(group_name: &str, partitions: &[&str]) -> Result<(),String> {
     let mut output = Command::new("vgextend");
     output.arg(group_name);

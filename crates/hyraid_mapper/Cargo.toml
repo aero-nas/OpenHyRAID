@@ -12,4 +12,8 @@ regex = "1.11.1"
 lsblk = "0.6.1"
 hyraid_mdadm = { workspace = true }
 hyraid_lvm2 = { workspace = true }
+hyraid_utils = { workspace = true }
+hyraid_json = { workspace = true }
+hyraid_types = { workspace = true }
+hyraid_gpt = { workspace = true }
 rand = "0.9.1"
