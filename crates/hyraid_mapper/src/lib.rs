@@ -410,76 +410,7 @@ pub fn add_disk_to_hyraid_array(name: String, disks: &[&str]) {
     }
     match hyraid_json::read_arrays(HYRAID_JSON_PATH).iter().find(|x| x.name == name) {
         Some(entry) => {
-            // Get all the stuff we need from the 
-            let mut raid_map_entry: RaidMap = entry.raid_map.clone();
-
-            // Re-compute the slices to account for larger disks being added
-            // since a larger disk means the current slices won't be enough
-            let slices = &recompute_slices(disks,&entry.slices);
-
-            let part_map = make_partition_map(disks,slices);
-            let mut part_map = create_partition_map(part_map);
-            part_map.extend(entry.part_map.clone());
-            let raid_map = init_raid_map(part_map.clone());
-            
-            for (array_name,partitions) in &raid_map.clone() {
-                let raid_array = raid_map_entry.iter().find(
-                    |x| {
-                        &x.1[0].size == &partitions[0].size && &partitions.len() == &x.1.len()
-                    }
-                );
-                if let Some((array,array_partitions)) = raid_array {
-                    let slice = into_paths_slice(partitions.to_vec());
-                    let slice: Vec<&str> = slice.iter().map(
-                        |s| s.as_str()
-                    ).collect();
-                    unwrap_or_exit_verbose!(
-                        add_to_raid_array(&array,&slice),
-                        "Failed to add disk to array. mdadm output:"
-                    );
-                    unwrap_or_exit_verbose!(
-                        lvm_pv_resize(&[&array]),
-                        "Failed to add disk to array. LVM (lvresize) output:"
-                    );
-                    raid_map_entry.insert(array.to_string(),array_partitions.to_vec());
-                } else {
-                    let slice = into_paths_slice(partitions.to_vec());
-                    let slice: Vec<&str> = slice.iter().map(
-                        |s| s.as_str()
-                    ).collect();
-                    let level = find_raid_level(slice.len(),entry.raid_level);
-                    unwrap_or_exit_verbose!(
-                        create_raid_array(&array_name,&slice,level),
-                        "Failed to add disk to array. mdadm output:"
-                    );
-                    unwrap_or_exit_verbose!(
-                        lvm_pv_create(&[&array_name]),
-                        "Failed to add disk to array. LVM (lvresize) output:"
-                    );
-                    unwrap_or_exit_verbose!(
-                        lvm_vg_extend(entry.lvm_lv_path.trim_end_matches("/lvol0"),&[&array_name]),
-                        "Failed to add disk to array. LVM (lvresize) output:"
-                    );
-                    raid_map_entry.insert(array_name.to_string(),partitions.to_vec());
-                }
-
-                let mut disks_entry = entry.disks.clone();
-                for (_,disk) in &raid_map {
-                    disks_entry.push(Disk{
-                        partitions: disk.to_vec(),
-                    })
-                }
-
-                hyraid_json::modify(HYRAID_JSON_PATH,entry.name.clone(),HyraidArray {
-                    name: entry.name.clone(),
-                    lvm_lv_path: entry.lvm_lv_path.clone(),
-                    disks: disks_entry.to_vec(),
-                    slices: slices.to_vec(),
-                    raid_level: entry.raid_level,
-                    raid_map: raid_map.clone(),
-                    part_map: part_map.clone()
-                });
-            }
+            unimplemented!("Adding disks not implemented.")
         },
         None => {
             error_exit!("Error: No such HyRAID array.");
