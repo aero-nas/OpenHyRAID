@@ -46,7 +46,7 @@ Used to determine how many partitions are created, and of what size.
 */
 pub type PartitionSlices = Vec<usize>;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct DiskPartition {
     pub path: Option<String>,
     pub size: usize
@@ -104,9 +104,6 @@ pub struct HyraidArray {
     pub raid_level: usize,
     pub disks: Vec<Disk>,
     pub raid_map: RaidMap,
-    pub slices: PartitionSlices
+    pub slices: PartitionSlices,
+    pub part_map: PartitionMap,
 }
-
-
-
-

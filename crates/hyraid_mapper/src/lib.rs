@@ -112,7 +112,7 @@ fn recompute_slices(disks: &[&str], slices: &PartitionSlices) -> PartitionSlices
     let mut slices: PartitionSlices = slices.clone();
 
     // skip first element (smallest disk size)
-    for size in sizes[1..].iter() { 
+    for size in sizes.iter() { 
         let slice = *size-slices.iter().sum::<usize>(); // Should probably rewrite this line.
         if slice != 0 {
             slices.push(slice)
@@ -330,7 +330,7 @@ pub fn create_hyraid_array(name: String,disks: &[&str], raid_level: usize) -> St
     let part_map = make_partition_map(disks,&slices);
     let part_map = create_partition_map(part_map);
 
-    let raid_map = init_raid_map(part_map);
+    let raid_map = init_raid_map(part_map.clone());
     create_init_raid_map(raid_map.clone(),raid_level.clone());
     // Combine disks
     let lvm_lv = create_lvm(&raid_map);
@@ -357,6 +357,7 @@ pub fn create_hyraid_array(name: String,disks: &[&str], raid_level: usize) -> St
                     ))
                 }).collect(),
             raid_map: raid_map,
+            part_map: part_map,
             slices,
         };
         hyraid_json::write_array(HYRAID_JSON_PATH,entry);
@@ -403,25 +404,30 @@ pub fn fail_from_hyraid_array(name: String, disks: &[&str]) {
 }
 
 pub fn add_disk_to_hyraid_array(name: String, disks: &[&str]) {
+    for disk in disks {
+        ensure_gpt(disk);
+        clear_partitions(disk);
+    }
     match hyraid_json::read_arrays(HYRAID_JSON_PATH).iter().find(|x| x.name == name) {
         Some(entry) => {
             // Get all the stuff we need from the 
-            let mut raid_map_entry = entry.raid_map.clone();
-            let slices = &entry.slices;
+            let mut raid_map_entry: RaidMap = entry.raid_map.clone();
 
             // Re-compute the slices to account for larger disks being added
             // since a larger disk means the current slices won't be enough
-            let slices = &recompute_slices(disks,slices);
+            let slices = &recompute_slices(disks,&entry.slices);
 
             let part_map = make_partition_map(disks,slices);
-            let part_map = create_partition_map(part_map);
-            let raid_map = init_raid_map(part_map);
+            let mut part_map = create_partition_map(part_map);
+            part_map.extend(entry.part_map.clone());
+            let raid_map = init_raid_map(part_map.clone());
             
             for (array_name,partitions) in &raid_map.clone() {
                 let raid_array = raid_map_entry.iter().find(
-                    |x| &x.1[0].size == &partitions[0].size
+                    |x| {
+                        &x.1[0].size == &partitions[0].size && &partitions.len() == &x.1.len()
+                    }
                 );
-                
                 if let Some((array,array_partitions)) = raid_array {
                     let slice = into_paths_slice(partitions.to_vec());
                     let slice: Vec<&str> = slice.iter().map(
@@ -470,7 +476,8 @@ pub fn add_disk_to_hyraid_array(name: String, disks: &[&str]) {
                     disks: disks_entry.to_vec(),
                     slices: slices.to_vec(),
                     raid_level: entry.raid_level,
-                    raid_map: raid_map.clone()
+                    raid_map: raid_map.clone(),
+                    part_map: part_map.clone()
                 });
             }
         },

@@ -30,7 +30,6 @@ pub enum SizeFormat {
 pub fn lvm_pv_create(partitions: &[&str]) -> Result<(),String> {
     let mut output = Command::new("pvcreate");    
     output.args(partitions);
-    println!("{:?}",output.get_args());
     run_cmd!(output)
 }
 
@@ -39,7 +38,6 @@ pub fn lvm_vg_create(group_name: &str, partitions: &[&str]) -> Result<(),String>
     let mut output = Command::new("vgcreate");
     output.arg(group_name);
     output.args(partitions);
-    println!("{:?}",output.get_args());
     run_cmd!(output)
 }
 
@@ -53,7 +51,6 @@ pub fn lvm_lv_create(group_name: &str, partitions: &[&str], size_type: SizeForma
         SizeFormat::SIZE => output.arg("-L")
     };
     output.arg(size);
-    println!("{:?}",output.get_args());
     run_cmd!(output)
 }
 
