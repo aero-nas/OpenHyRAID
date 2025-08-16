@@ -244,8 +244,11 @@ fn init_raid_map(part_map: PartitionMap) -> RaidMap {
 }
 
 /// Return 2 raid maps, one of them is for creating and one of them for extending.
-/// TODO: fix this shit
-/// I know its still broken but now its cleaner and easier to fix.
+// TODO: fix this shit
+// I know its still broken but now its cleaner and easier to fix.
+// this function returns 2 RaidMap objects,
+// one of them is for when you need to add the partition to an existing array,
+// and one of them for when you need to create an entirely new array.   
 fn expand_raid_map(part_map: PartitionMap, raid_map: RaidMap) -> (RaidMap,RaidMap) {
     let mut raid_map_create = RaidMap::new();
     let mut raid_map_extend = RaidMap::new();
