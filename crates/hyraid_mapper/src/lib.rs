@@ -18,13 +18,12 @@
 */
 
 use std::{
-    collections::HashMap, 
+    collections::{HashMap}, 
     path::Path, 
     process::exit
 };
 
 use hyraid_types::{
-    Disk,
     DiskPartition, 
     PartitionMap, 
     PartitionSlices, 
@@ -230,7 +229,7 @@ fn init_raid_map(part_map: PartitionMap) -> RaidMap {
             .iter()
             .map(
                 |s| {
-                    s.clone()
+                    s.to_owned()
                 }
             )
             .collect();
@@ -242,6 +241,60 @@ fn init_raid_map(part_map: PartitionMap) -> RaidMap {
     }
 
     raid_map
+}
+
+/// Return 2 raid maps, one of them is for creating and one of them for extending.
+/// TODO: fix this shit
+/// I know its still broken but now its cleaner and easier to fix.
+fn expand_raid_map(part_map: PartitionMap, raid_map: RaidMap) -> (RaidMap,RaidMap) {
+    let mut raid_map_create = RaidMap::new();
+    let mut raid_map_extend = RaidMap::new();
+    
+    let mut part_map: Vec<(String,Vec<DiskPartition>)> = part_map.into_iter().collect();
+    part_map.sort_unstable_by_key(|(_,parts)| parts.len());
+    part_map.reverse();
+
+    let mut groups: HashMap<usize,Vec<DiskPartition>> = HashMap::new();
+    
+    for i in 0..part_map[0].1.len() {
+        groups.insert(i,vec![]);
+    }
+
+    for (group,partitions) in &mut groups {
+        for (_,parts) in &part_map {
+            if let Some(x) = parts.get(*group) {
+                partitions.push(x.clone());
+            }
+        }
+    }
+
+    for group in groups.values() {
+        let slice: Vec<DiskPartition> = group
+            .iter()
+            .map(
+                |s| {
+                    s.to_owned()
+                }
+            )
+            .collect();
+        let devname = &format!("/dev/md/hyraid_md_{}",random_string(10))[..];
+        
+        let array = raid_map
+            .iter()
+            .find(|(_,partitions)| {
+                group.len() == partitions.len()
+            });
+
+        if let Some(_) = array {
+            if slice.len() != 1 {
+                raid_map_create.insert(devname.to_string(),slice);
+            }
+        } else {
+            raid_map_extend.insert(devname.to_string(),slice);
+        }
+    }
+
+    (raid_map_create,raid_map_extend)
 }
 
 /// Determine RAID level automatically
@@ -273,7 +326,7 @@ fn find_raid_level(partitions: usize,intended_raid_level: usize) -> usize {
 fn into_paths_slice(partitions: Vec<DiskPartition>) -> Vec<String> {
     let slice: Vec<String> = partitions
         .iter()
-        .map(|s| s.path.clone().unwrap())
+        .map(|s| s.path.to_owned().unwrap())
         .collect();
 
     slice.to_vec()
@@ -338,7 +391,7 @@ pub fn create_hyraid_array(name: String,disks: &[&str], raid_level: usize) -> St
     if Path::new(&lvm_lv).exists() {
         let entry = HyraidArray {
             name: name,
-            lvm_lv_path: lvm_lv.clone(),
+            lvm_lv_path: lvm_lv.to_owned(),
             raid_level, 
             disks: disks
                 .iter()
@@ -410,7 +463,50 @@ pub fn add_disk_to_hyraid_array(name: String, disks: &[&str]) {
     }
     match hyraid_json::read_arrays(HYRAID_JSON_PATH).iter().find(|x| x.name == name) {
         Some(entry) => {
-            unimplemented!("Adding disks not implemented.")
+            let raid_map_entry: RaidMap = entry.raid_map.to_owned();
+
+            // Re-compute the slices to account for larger disks being added
+            // since a larger disk means the current slices won't be enough
+            let slices = &recompute_slices(disks,&entry.slices);
+
+            let mut part_map = create_partition_map(make_partition_map(disks,slices));
+            part_map.extend(entry.part_map.to_owned());
+            
+            let (raid_map_create,raid_map_extend) = expand_raid_map(part_map,raid_map_entry);
+            
+            for (array,partitions) in raid_map_create {
+                let slice = into_paths_slice(partitions.to_vec());
+                let slice: Vec<&str> = slice.iter().map(
+                    |s| s.as_str()
+                ).collect();
+                let level = find_raid_level(slice.len(),entry.raid_level);
+                unwrap_or_exit_verbose!(
+                    create_raid_array(&array,&slice,level),
+                    "Failed to add disk to array. mdadm output:"
+                );
+                unwrap_or_exit_verbose!(
+                    lvm_pv_create(&[&array]),
+                    "Failed to add disk to array. LVM (lvresize) output:"
+                );
+                unwrap_or_exit_verbose!(
+                    lvm_vg_extend(entry.lvm_lv_path.trim_end_matches("/lvol0"),&[&array]),
+                    "Failed to add disk to array. LVM (lvresize) output:"
+                );
+            }
+            for (array,partitions) in raid_map_extend {
+                let slice = into_paths_slice(partitions.to_vec());
+                let slice: Vec<&str> = slice.iter().map(
+                    |s| s.as_str()
+                ).collect();
+                unwrap_or_exit_verbose!(
+                    add_to_raid_array(&array,&slice),
+                    "Failed to add disk to array. mdadm output:"
+                );
+                unwrap_or_exit_verbose!(
+                    lvm_pv_resize(&[&array]),
+                    "Failed to add disk to array. LVM (lvresize) output:"
+                );
+            }
         },
         None => {
             error_exit!("Error: No such HyRAID array.");
@@ -431,7 +527,7 @@ pub fn remove_disk_from_array(name: String, disks: &[&str]) {
         }
         match hyraid_json::read_arrays(HYRAID_JSON_PATH).iter().find(|x| x.name == name) {
             Some(entry) => {
-                for part in partitions.clone() {
+                for part in partitions.to_owned() {
                     let raid_array = entry.raid_map
                         .iter()
                         .find(|x| x.1.contains(&part));
