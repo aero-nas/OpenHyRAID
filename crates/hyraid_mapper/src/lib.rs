@@ -377,6 +377,10 @@ fn create_lvm(raid_map: &RaidMap) -> String {
 }
 
 pub fn create_hyraid_array(name: String,disks: &[&str], raid_level: usize) -> String {
+    if let Some(_) = hyraid_json::read_arrays(HYRAID_JSON_PATH).iter().find(|x| x.name == name) {
+        error_exit!(format!("Array \"{}\" already exists",name));
+    }
+
     for disk in disks {
         ensure_gpt(disk);
         clear_partitions(disk);
