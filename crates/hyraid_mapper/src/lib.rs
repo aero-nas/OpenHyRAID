@@ -244,11 +244,6 @@ fn init_raid_map(part_map: PartitionMap) -> RaidMap {
 }
 
 /// Return 2 raid maps, one of them is for creating and one of them for extending.
-// TODO: fix this shit
-// I know its still broken but now its cleaner and easier to fix.
-// this function returns 2 RaidMap objects,
-// one of them is for when you need to add the partition to an existing array,
-// and one of them for when you need to create an entirely new array.   
 fn expand_raid_map(part_map: PartitionMap, raid_map: RaidMap) -> (RaidMap,RaidMap) {
     let mut raid_map_create = RaidMap::new();
     let mut raid_map_extend = RaidMap::new();
@@ -280,20 +275,26 @@ fn expand_raid_map(part_map: PartitionMap, raid_map: RaidMap) -> (RaidMap,RaidMa
                 }
             )
             .collect();
-        let devname = &format!("/dev/md/hyraid_md_{}",random_string(10))[..];
         
+        let mut devname: String = "".to_string();
         let array = raid_map
             .iter()
-            .find(|(_,partitions)| {
-                group.starts_with(&partitions)
+            .find(|(name,partitions)| {
+                if group.ends_with(&partitions) {
+                    devname = name.to_string();
+                    true
+                } else {
+                    devname = (&format!("/dev/md/hyraid_md_{}",random_string(10))[..]).to_string();
+                    false
+                }
             });
 
-        if let Some(_) = array {
-            if slice.len() != 1 {
+        if let Some((_,_)) = array {
+            raid_map_extend.insert(devname.to_string(),slice);
+        } else {
+            if slice.len() != 1 && raid_map.values().find(|x| **x == slice) == None {
                 raid_map_create.insert(devname.to_string(),slice);
             }
-        } else {
-            raid_map_extend.insert(devname.to_string(),slice);
         }
     }
 
