@@ -81,26 +81,33 @@ fn cli_input(prompt: &str) -> String {
     input.to_string()
 }
 
+fn confirm() {
+    let mut answer = " ".to_string();
+    if !(answer == "" || answer == "y" || answer == "n"){
+        while !(answer == "" || answer == "y" || answer == "n") {
+            answer = cli_input("All data on the disks will be lost. Are you sure? [y/N]: ").to_lowercase();
+        }
+    }
+    
+    if answer == "n" || answer == "" {
+        if answer == "" {
+            print!("n");
+        }
+        println!("Cancelled.");
+        process::exit(0);
+    }
+}
+
 fn main() {
     if !is_root() {
         println!("HyRAID must be run as root. Quitting.");
         process::exit(1);
     }
     let cli = Cli::parse();
-    println!("THIS PROGRAM IS IN W.I.P. RUNNING IT MAY RESULT IN UNDEFINED BEHAVIOUR!!!");
+    println!("THIS PROGRAM IS IN ALPHA RUNNING IT MAY RESULT IN UNDEFINED BEHAVIOUR!!!");
     match &cli.command {
         Commands::Create { disks, raid_level, name } => {
-            let mut answer = " ".to_string();
-            if !(answer == "" || answer == "y" || answer == "n"){
-                while !(answer == "" || answer == "y" || answer == "n") {
-                    answer = cli_input("All data on the disks will be lost. Are you sure? [y/N]: ").to_lowercase();
-                }
-            }
-            
-            if answer == "n" || answer == "" {
-                println!("Cancelled.");
-                process::exit(0);
-            }
+            confirm();
             
             let slice = &disks
                 .iter()
@@ -119,6 +126,8 @@ fn main() {
             hyraid_mapper::fail_from_hyraid_array(name.to_string(),slice);
         },
         Commands::Add { name, disks } => {
+            confirm();
+
             let slice = &disks
                 .iter()
                 .map(|s| s.as_str())

@@ -1,13 +1,11 @@
 # OpenHyRAID
 
-<p style="font-size:40px">STILL working in progress! Absolutely not ready for production use.</p>
+Project still in alpha. Not yet ready for production use. But tests can be done to verify functionality.
 <p align="center">
-  <!--
   <img src="img/hyraid.svg"
     height="100"
     style="padding:16px;"  
   >
-  --!>
 </p>
 
 Open-source, high-level mdadm wrapper to implement Synology SHR written in Rust.
@@ -26,5 +24,5 @@ made with ❤️ by lizard >w<
 
 # Roadmap
 Necessary for 1.0
-  - [ ] Creating arrays
-  - [ ] Modifying arrays (e.g. Replacing a drive)
+  - [x] Creating arrays
+  - [x] Adding and removing disks
