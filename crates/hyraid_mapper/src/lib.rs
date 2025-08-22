@@ -285,7 +285,7 @@ fn expand_raid_map(part_map: PartitionMap, raid_map: RaidMap) -> (RaidMap,RaidMa
         let array = raid_map
             .iter()
             .find(|(_,partitions)| {
-                group.len() == partitions.len()
+                group.starts_with(&partitions)
             });
 
         if let Some(_) = array {
