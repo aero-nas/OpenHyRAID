@@ -18,8 +18,13 @@
 
 use hyraid_mapper;
 use hyraid_utils::is_root;
+
+#[cfg(feature = "unittest")]
+use std::fs::File;
+
 use std::{
-    io::{self, Write}, process
+    io::{self, Write}, 
+    process
 };
 use clap::{Parser, Subcommand};
 
@@ -98,15 +103,25 @@ fn confirm() {
     }
 }
 
-fn main() {
+#[cfg(feature = "unittest")]
+fn log_logical_volume(lv_path: String) {
+    let mut file = File::create("/tmp/hyraid_unittest").unwrap();
+    file.write_all(lv_path.as_bytes()).unwrap();
+}
+
+fn root_check() {
     if !is_root() {
-        println!("HyRAID must be run as root. Quitting.");
+        println!("Action requires root. Quitting.");
         process::exit(1);
     }
+}
+
+fn main() {
     let cli = Cli::parse();
     println!("THIS PROGRAM IS IN ALPHA RUNNING IT MAY RESULT IN UNDEFINED BEHAVIOUR!!!");
     match &cli.command {
         Commands::Create { disks, raid_level, name } => {
+            root_check();
             confirm();
             
             let slice = &disks
@@ -116,8 +131,14 @@ fn main() {
 
             let logical_volume = hyraid_mapper::create_hyraid_array(name.to_string(),slice,*raid_level);
             println!("Created logical volume: {}",logical_volume);
+
+            // for unit testing
+            #[cfg(feature = "unittest")]
+            log_logical_volume(logical_volume);
         }
         Commands::Fail { name, disks } => {
+            root_check();
+
             let slice = &disks
                 .iter()
                 .map(|s| s.as_str())
@@ -126,6 +147,7 @@ fn main() {
             hyraid_mapper::fail_from_hyraid_array(name.to_string(),slice);
         },
         Commands::Add { name, disks } => {
+            root_check();
             confirm();
 
             let slice = &disks
@@ -136,6 +158,8 @@ fn main() {
             hyraid_mapper::add_disk_to_hyraid_array(name.to_string(),slice);
         },
         Commands::Remove { name, disks } => {
+            root_check();
+
             let slice = &disks
                 .iter()
                 .map(|s| s.as_str())

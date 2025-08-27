@@ -1,0 +1,21 @@
+# Warning: Compiling for aarch64 requires binfmt support.
+services:
+  x86_64-gnu-linux:
+    build:
+      context: ..
+      dockerfile: docker-ci/x86_64-gnu-linux.Dockerfile
+    volumes:
+      - type: bind
+        source: ./bin
+        target: /app/bin
+    privileged: true
+    
+  x86_64-musl-linux:
+    build:
+      context: ..
+      dockerfile: docker-ci/x86_64-musl-linux.Dockerfile
+    volumes:
+      - type: bind
+        source: ./bin
+        target: /app/bin
+    privileged: true

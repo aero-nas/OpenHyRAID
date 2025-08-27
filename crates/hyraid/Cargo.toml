@@ -6,6 +6,9 @@ version.workspace = true
 description.workspace = true
 license.workspace = true
 
+[features]
+unittest = []
+
 [dependencies]
 hyraid_utils = { workspace = true }
 hyraid_mapper = { workspace = true }

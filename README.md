@@ -26,3 +26,5 @@ made with ❤️ by lizard >w<
 Necessary for 1.0
   - [x] Creating arrays
   - [x] Adding and removing disks
+  - [ ] Unit tests - partially done
+  - [ ] ZFS support

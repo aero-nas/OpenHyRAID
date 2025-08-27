@@ -1,6 +1,5 @@
 [workspace]
 members = ["crates/*"]
-exclude = ["img"]
 resolver = "3"
 
 [workspace.package]
