@@ -3,7 +3,12 @@
 
 # Tests if array can be created without issues.
 
-/app/scripts/loop-devices.sh test-create 3
+# shut the fuck up
+# shellcheck disable=SC1091
+
+source /app/scripts/lib.sh
+
+create-multiple 3
 
 if /app/hyraid-unittest create --array-name unittest --raid-level 5 /dev/loop{0..2}; then 
     # HyRAID has a cargo feature for unit testing where it writes 

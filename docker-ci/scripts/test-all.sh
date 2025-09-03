@@ -4,7 +4,7 @@
 
 cleanup () {
     yes | vgremove /dev/hyraid_* && mdadm --stop --scan
-    /app/scripts/cleanup-loop-devices.sh
+    losetup -D
 }
 
 failure () {

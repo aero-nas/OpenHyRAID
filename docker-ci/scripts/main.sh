@@ -4,12 +4,13 @@
 # shut the fuck up
 # shellcheck disable=SC2164
 # shellcheck disable=SC1091
+# shellcheck disable=SC2028 
 
 source /root/.bashrc
 
 cd /app/src
 
-cargo build --features unittest
+cargo build --features unittest --release
 cp /app/src/target/debug/hyraid /app/hyraid-unittest
 if ls /app/src/target/debug/hyraid; then
     if /app/scripts/test-all.sh; then
