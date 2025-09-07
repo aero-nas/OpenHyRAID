@@ -29,7 +29,7 @@ use std::{
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(version = "v0.1", about, long_about = None)]
+#[command(version, about)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -118,6 +118,7 @@ fn root_check() {
 
 fn main() {
     let cli = Cli::parse();
+
     println!("THIS PROGRAM IS IN ALPHA RUNNING IT MAY RESULT IN UNDEFINED BEHAVIOUR!!!");
     match &cli.command {
         Commands::Create { disks, raid_level, name } => {

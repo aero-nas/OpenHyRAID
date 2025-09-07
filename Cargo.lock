@@ -178,7 +178,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hyraid"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "clap",
  "gpt",
@@ -189,7 +189,7 @@ dependencies = [
 
 [[package]]
 name = "hyraid_gpt"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "gpt",
  "hyraid_utils",
@@ -198,7 +198,7 @@ dependencies = [
 
 [[package]]
 name = "hyraid_json"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "hyraid_types",
  "serde_json",
@@ -206,14 +206,14 @@ dependencies = [
 
 [[package]]
 name = "hyraid_lvm2"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "hyraid_utils",
 ]
 
 [[package]]
 name = "hyraid_mapper"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "gpt",
  "hyraid_gpt",
@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "hyraid_mdadm"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "hyraid_utils",
  "regex",
@@ -237,7 +237,7 @@ dependencies = [
 
 [[package]]
 name = "hyraid_types"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "gpt",
  "hyraid_gpt",
@@ -247,7 +247,7 @@ dependencies = [
 
 [[package]]
 name = "hyraid_utils"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "nix",
 ]
