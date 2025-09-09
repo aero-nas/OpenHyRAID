@@ -7,13 +7,14 @@ description.workspace = true
 license.workspace = true
 
 [dependencies]
-gpt = "4.1.0"
-regex = "1.11.1"
-lsblk = "0.6.1"
-hyraid_mdadm = { workspace = true }
-hyraid_lvm2 = { workspace = true }
-hyraid_utils = { workspace = true }
-hyraid_json = { workspace = true }
-hyraid_types = { workspace = true }
-hyraid_gpt = { workspace = true }
-rand = "0.9.1"
+hyraid_mdadm.workspace = true
+hyraid_lvm2.workspace = true
+hyraid_utils.workspace = true
+hyraid_json.workspace = true
+hyraid_types.workspace = true
+hyraid_gpt.workspace = true
+
+gpt.workspace = true
+regex.workspace = true
+lsblk.workspace = true
+rand.workspace = true

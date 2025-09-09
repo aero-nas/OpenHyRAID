@@ -7,6 +7,6 @@ description.workspace = true
 license.workspace = true
 
 [dependencies]
-gpt = "4.1.0"
-regex = "1.11.1"
-hyraid_utils = { workspace = true }
+gpt.workspace = true
+regex.workspace = true
+hyraid_utils.workspace = true

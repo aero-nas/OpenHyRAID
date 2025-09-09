@@ -7,4 +7,4 @@ description.workspace = true
 license.workspace = true
 
 [dependencies]
-hyraid_utils = { workspace = true }
+hyraid_utils.workspace = true
