@@ -219,19 +219,11 @@ dependencies = [
  "hyraid_gpt",
  "hyraid_json",
  "hyraid_lvm2",
- "hyraid_mdadm",
  "hyraid_types",
  "hyraid_utils",
  "lsblk",
+ "raid_rs",
  "rand",
- "regex",
-]
-
-[[package]]
-name = "hyraid_mdadm"
-version = "0.1.0"
-dependencies = [
- "hyraid_utils",
  "regex",
 ]
 
@@ -364,6 +356,15 @@ name = "r-efi"
 version = "5.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
+
+[[package]]
+name = "raid_rs"
+version = "0.1.0"
+source = "git+https://github.com/aero-nas/raid-rs?branch=unstable#67a3e2646f68fa56d0f60d771589e4c232ab1f87"
+dependencies = [
+ "nix",
+ "regex",
+]
 
 [[package]]
 name = "rand"

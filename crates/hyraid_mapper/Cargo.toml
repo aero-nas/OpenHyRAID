@@ -7,13 +7,13 @@ description.workspace = true
 license.workspace = true
 
 [dependencies]
-hyraid_mdadm.workspace = true
 hyraid_lvm2.workspace = true
 hyraid_utils.workspace = true
 hyraid_json.workspace = true
 hyraid_types.workspace = true
 hyraid_gpt.workspace = true
 
+raid_rs.workspace = true
 gpt.workspace = true
 regex.workspace = true
 lsblk.workspace = true

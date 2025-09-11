@@ -39,7 +39,7 @@ use hyraid_lvm2::{
     lvm_vg_extend
 };
 
-use hyraid_mdadm::{
+use raid_rs::mdadm::{
     create_raid_array, 
     fail_from_raid_array, 
     remove_from_raid_array,
